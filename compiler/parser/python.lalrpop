@@ -760,7 +760,7 @@ OrTest: ast::Expr = {
         if e2.is_empty() {
             e1
         } else {
-            let mut values = vec![e1.clone()];
+            let mut values = vec![e1];
             values.extend(e2.into_iter().map(|e| e.1));
             ast::Expr {
                 location,
