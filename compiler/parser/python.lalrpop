@@ -763,7 +763,7 @@ OrTest: ast::Expr = {
             let mut values = vec![e1];
             values.extend(e2.into_iter().map(|e| e.1));
             ast::Expr {
-                e1.location,
+                location: e1.location,
                 end_location: Some(end_location),
                 custom: (),
                 node: ast::ExprKind::BoolOp { op: ast::Boolop::Or, values }
