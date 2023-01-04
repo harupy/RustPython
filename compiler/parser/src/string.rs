@@ -29,17 +29,29 @@ pub fn parse_strings(
         });
     }
 
+    if values.len() > 1 && cfg!(feature = "implicit-concat-as-joined-str") {
+        let mut exprs: Vec<Expr> = vec![];
+        for (start, (source, kind, triple_quoted), end) in values {
+            let expr = parse_string(&source, kind, triple_quoted, start, end)?;
+            exprs.push(expr);
+        }
+        return Ok(Expr::new(
+            initial_start,
+            last_end,
+            ExprKind::JoinedStr { values: exprs },
+        ));
+    }
+
     if has_bytes {
         let mut content: Vec<u8> = vec![];
         for (start, (source, kind, triple_quoted), end) in values {
-            for value in parse_string(&source, kind, triple_quoted, start, end)? {
-                match value.node {
-                    ExprKind::Constant {
-                        value: Constant::Bytes(value),
-                        ..
-                    } => content.extend(value),
-                    _ => unreachable!("Unexpected non-bytes expression."),
-                }
+            let expr = parse_string(&source, kind, triple_quoted, start, end)?;
+            match expr.node {
+                ExprKind::Constant {
+                    value: Constant::Bytes(value),
+                    ..
+                } => content.extend(value),
+                _ => unreachable!("Unexpected non-bytes expression."),
             }
         }
         return Ok(Expr::new(
@@ -55,14 +67,13 @@ pub fn parse_strings(
     if !has_fstring {
         let mut content: Vec<String> = vec![];
         for (start, (source, kind, triple_quoted), end) in values {
-            for value in parse_string(&source, kind, triple_quoted, start, end)? {
-                match value.node {
-                    ExprKind::Constant {
-                        value: Constant::Str(value),
-                        ..
-                    } => content.push(value),
-                    _ => unreachable!("Unexpected non-string expression."),
-                }
+            let expr = parse_string(&source, kind, triple_quoted, start, end)?;
+            match expr.node {
+                ExprKind::Constant {
+                    value: Constant::Str(value),
+                    ..
+                } => content.push(value),
+                _ => unreachable!("Unexpected non-string expression."),
             }
         }
         return Ok(Expr::new(
@@ -91,20 +102,30 @@ pub fn parse_strings(
     };
 
     for (start, (source, kind, triple_quoted), end) in values {
-        for value in parse_string(&source, kind, triple_quoted, start, end)? {
-            match value.node {
-                ExprKind::FormattedValue { .. } => {
-                    if !current.is_empty() {
-                        deduped.push(take_current(&mut current));
+        let expr = parse_string(&source, kind, triple_quoted, start, end)?;
+        match expr.node {
+            ExprKind::Constant {
+                value: Constant::Str(value),
+                ..
+            } => current.push(value),
+            ExprKind::JoinedStr { values } => {
+                for value in values {
+                    match value.node {
+                        ExprKind::Constant {
+                            value: Constant::Str(value),
+                            ..
+                        } => current.push(value),
+                        ExprKind::FormattedValue { .. } => {
+                            if !current.is_empty() {
+                                deduped.push(take_current(&mut current));
+                            }
+                            deduped.push(value)
+                        }
+                        _ => unreachable!("Unexpected non-string expression."),
                     }
-                    deduped.push(value)
                 }
-                ExprKind::Constant {
-                    value: Constant::Str(value),
-                    ..
-                } => current.push(value),
-                _ => unreachable!("Unexpected non-string expression."),
             }
+            _ => unreachable!("Unexpected non-string expression."),
         }
     }
     if !current.is_empty() {
