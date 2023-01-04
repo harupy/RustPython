@@ -288,6 +288,7 @@ impl<'a> Unparser<'a> {
             ExprKind::ImplicitConcat { values } => {
                 for value in values {
                     self.unparse_expr(value, precedence::ATOM)?;
+                    self.p(" ")?;
                 }
             }
             ExprKind::Constant { value, kind } => {
