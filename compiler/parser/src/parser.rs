@@ -316,4 +316,10 @@ with (0 as a, 1 as b,): pass
             assert!(parse_program(source, "<test>").is_err());
         }
     }
+
+    #[test]
+    fn test_invalid_syntax() {
+        println!("{:?}", parse_program("a=", "<test>").err());
+        assert!(true);
+    }
 }

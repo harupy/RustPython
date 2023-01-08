@@ -23,6 +23,7 @@ pub Top: ast::Mod = {
     StartModule <body:Program> => ast::Mod::Module { body, type_ignores: vec![] },
     StartInteractive <body:Program> => ast::Mod::Interactive { body },
     StartExpression <body:TestList> ("\n")* => ast::Mod::Expression { body: Box::new(body) },
+    StartExpression <body:TestList> EOF => ast::Mod::Expression { body: Box::new(body) },
 };
 
 Program: ast::Suite = {
@@ -35,20 +36,24 @@ Program: ast::Suite = {
 FileLine: ast::Suite = {
     Statement,
     "\n" => vec![],
+    EOF => vec![],
 };
 
 Suite: ast::Suite = {
-    SimpleStatement,
+    <s:SimpleStatement> "\n" => s,
+    <s:SimpleStatement> EOF => s,
     "\n" Indent <s:Statement+> Dedent => s.into_iter().flatten().collect(),
+    "\n" Indent <s:Statement+> EOF => s.into_iter().flatten().collect(),
 };
 
 Statement: ast::Suite = {
-    SimpleStatement,
+    <s:SimpleStatement> "\n" => s,
+    <s:SimpleStatement> EOF => s,
     <s:CompoundStatement> => vec![s],
 };
 
 SimpleStatement: ast::Suite = {
-    <s1:SmallStatement> <s2:(";" SmallStatement)*> ";"? "\n" => {
+    <s1:SmallStatement> <s2:(";" SmallStatement)*> ";"? => {
         let mut statements = vec![s1];
         statements.extend(s2.into_iter().map(|e| e.1));
         statements
@@ -1461,6 +1466,7 @@ extern {
             triple_quoted: <bool>
         },
         name => lexer::Tok::Name { name: <String> },
+        EOF => lexer::Tok::EndOfFile,
         "\n" => lexer::Tok::Newline,
         ";" => lexer::Tok::Semi,
         "#" => lexer::Tok::Comment(_),

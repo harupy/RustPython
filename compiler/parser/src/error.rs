@@ -213,7 +213,7 @@ pub(crate) fn parse_error_from_lalrpop(
             let expected = (expected.len() == 1).then(|| expected[0].clone());
             ParseError {
                 error: ParseErrorType::UnrecognizedToken(token.1, expected),
-                location: token.0.with_col_offset(1),
+                location: token.0,
                 source_path,
             }
         }
@@ -249,7 +249,7 @@ impl fmt::Display for ParseErrorType {
                 } else if expected.as_deref() == Some("Indent") {
                     write!(f, "expected an indented block")
                 } else {
-                    write!(f, "invalid syntax. Got unexpected token {tok}")
+                    write!(f, "invalid syntax")
                 }
             }
             ParseErrorType::Lexical(ref error) => write!(f, "{error}"),

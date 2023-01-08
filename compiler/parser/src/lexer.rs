@@ -137,6 +137,7 @@ pub struct Lexer<T: Iterator<Item = char>> {
     window: CharWindow<T, 3>,
 
     at_begin_of_line: bool,
+    eof: bool,
     nesting: usize, // Amount of parenthesis
     indentations: Indentations,
 
@@ -223,6 +224,7 @@ where
     pub fn new(input: T, start: Location) -> Self {
         let mut lxr = Lexer {
             at_begin_of_line: true,
+            eof: false,
             nesting: 0,
             indentations: Indentations::default(),
             pending: Vec::new(),
@@ -716,18 +718,6 @@ where
                 });
             }
 
-            // Next, insert a trailing newline, if required.
-            if !self.at_begin_of_line {
-                self.at_begin_of_line = true;
-                self.emit((tok_pos, Tok::Newline, tok_pos));
-            }
-
-            // Next, flush the indentation stack to zero.
-            while !self.indentations.is_empty() {
-                self.indentations.pop();
-                self.emit((tok_pos, Tok::Dedent, tok_pos));
-            }
-
             self.emit((tok_pos, Tok::EndOfFile, tok_pos));
         }
 
@@ -1164,6 +1154,9 @@ where
         // Idea: create some sort of hash map for single char tokens:
         // let mut X = HashMap::new();
         // X.insert('=', Tok::Equal);
+        if self.eof {
+            return None;
+        }
         let token = self.inner_next();
         trace!(
             "Lex token {:?}, nesting={:?}, indent stack: {:?}",
@@ -1173,7 +1166,10 @@ where
         );
 
         match token {
-            Ok((_, Tok::EndOfFile, _)) => None,
+            Ok((_, Tok::EndOfFile, _)) => {
+                self.eof = true;
+                Some(token)
+            }
             r => Some(r),
         }
     }
